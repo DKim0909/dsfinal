@@ -1,0 +1,15 @@
+1) parse from kaggle
+2) filter 
+2a) empty
+2b) nulls
+2c) remove duplicate entries
+2d) remove heavy outliers
+3) save filtered dataframe
+4) Load df as an sql db
+Step 4.5) Make regression models for features
+5) Features: 
+5a) Age and cost correrlation
+5b) Medical Condition patient stay correlation
+5c) Medication condtion
+6) Dashboard:
+6a) Hospital efficiency discharge time
