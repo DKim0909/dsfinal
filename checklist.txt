@@ -1,10 +1,10 @@
-1) parse from kaggle
-2) filter 
-2a) empty
-2b) nulls
-2c) remove duplicate entries
-2d) remove heavy outliers
-3) save filtered dataframe
+1) parse from kaggle (done)
+2) filter (done)
+2a) empty (done)
+2b) nulls (done)
+2c) remove duplicate entries (done)
+2d) remove heavy outliers (done)
+3) save filtered dataframe (done)
 4) Load df as an sql db
 Step 4.5) Make regression models for features
 5) Features: 
