@@ -14,9 +14,10 @@ In order to run the dashboard, follow these steps:
    cd /dsfinal/src
    ```
 
-2. Run the Streamlit application using the following command:
+2. Run the Install for the required libraries and then Streamlit application using the following commands:
 
    ```
+   pip install pandas numpy matplotlib seaborn streamlit scikit-learn
    streamlit run dashboard.py
    ```
 
