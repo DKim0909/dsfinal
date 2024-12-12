@@ -150,12 +150,25 @@ class HealthcareDashboard:
         return plt
 
 
-    def predict_future_cost(self, patient_data):
-      
-        prepared_data = self.prepare_data(patient_data)
-
-        predicted_cost = self.model.predict(prepared_data)[0]
-        return predicted_cost
+    def predict_costs(self):
+    # Prepare features
+        features = ['gender', 'medical_condition', 'length_of_stay', 'admission_type']
+        X = pd.get_dummies(self.df[features])
+        y = self.df['total_charges']
+    
+    # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    
+    # Train model
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+    
+    # Evaluate
+        predictions = model.predict(X_test)
+        mse = mean_squared_error(y_test, predictions)
+        r2 = r2_score(y_test, predictions)
+    
+        return model, mse, r2
 
     def prepare_data(self, patient_data):
         age = patient_data['age']
@@ -175,6 +188,15 @@ class HealthcareDashboard:
         X = df.values
 
         return X
+    def train_model(self):
+       
+        X = self.df[['Age', 'Gender', 'Medical Condition', 'Doctor', 'Hospital', 'Insurance Provider', 'Admission Type', 'Room Number']]
+        y = self.df['Billing Amount']
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        return model
 
 def main():
     st.set_page_config(layout="wide")
@@ -193,7 +215,7 @@ def main():
         patient_id = st.text_input("Enter Patient ID")
         if patient_id:
             patient_data = dashboard.get_patient_data(patient_id)
-            predicted_cost = dashboard.predict_future_cost(patient_data)
+            predicted_cost = dashboard.predict_cost(patient_data)
             st.write(f"Predicted Future Cost: ${predicted_cost:.2f}")
 
     except Exception as e:
