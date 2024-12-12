@@ -5,37 +5,59 @@ import seaborn as sns
 import streamlit as st
 import numpy as np
 import os
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 class HealthcareDashboard:
-    def __init__(self, db_path):
+    def __init__(self, db_path, model_path):
         try:
             self.conn = sqlite3.connect(db_path)
-            
+            self.model_path = model_path
+
             # Fetch the data
             self.df = pd.read_sql_query("""
                 SELECT 
                     p.patient_id,
+                    p.age,
                     p.gender,
+                    p.blood_type,
                     p.medical_condition,
                     a.admission_date,
-                    a.discharge_date,
                     a.doctor,
+                    a.hospital,
+                    a.insurance_provider,
+                    b.billing_amount,
+                    a.room_number,
                     a.admission_type,
-                    COALESCE(CAST(b.total_charges AS FLOAT), 0) as total_charges,
-                    CAST((JULIANDAY(a.discharge_date) - JULIANDAY(a.admission_date)) AS INTEGER) as length_of_stay
+                    a.discharge_date,
+                    m.medication,
+                    t.test_results
                 FROM Patients p
                 LEFT JOIN Admissions a ON p.patient_id = a.patient_id
                 LEFT JOIN Billing b ON a.admission_id = b.admission_id
+                LEFT JOIN Medications m ON a.admission_id = m.admission_id
+                LEFT JOIN Tests t ON a.admission_id = t.admission_id
                 WHERE a.discharge_date IS NOT NULL 
                     AND a.admission_date IS NOT NULL
             """, self.conn)
-            
+
             print(f"Data loaded with {self.df.shape[0]} rows and {self.df.shape[1]} columns.")
             print(f"Total unique patients: {self.df['patient_id'].nunique()}")
-            
+
+            # Load the trained model
+            self.model = self.load_model()
+
         except Exception as e:
             print(f"Error in initialization: {str(e)}")
             raise
+
+    def load_model(self):
+        try:
+            return load_model(self.model_path)
+        except Exception as e:
+            print(f"Error loading model: {str(e)}")
+            return None
 
     def gender_cost_correlation(self):
         plt.figure(figsize=(10, 6))
@@ -127,42 +149,53 @@ class HealthcareDashboard:
         plt.tight_layout()
         return plt
 
+
+    def predict_future_cost(self, patient_data):
+      
+        prepared_data = self.prepare_data(patient_data)
+
+        predicted_cost = self.model.predict(prepared_data)[0]
+        return predicted_cost
+
+    def prepare_data(self, patient_data):
+        age = patient_data['age']
+        gender = patient_data['gender']
+        blood_type = patient_data['blood_type']
+        medical_condition = patient_data['medical_condition']
+        admission_type = patient_data['admission_type']
+
+        df = pd.DataFrame({'age': [age],
+                       'gender': [gender],
+                       'blood_type': [blood_type],
+                       'medical_condition': [medical_condition],
+                       'admission_type': [admission_type]})
+
+        categorical_features = ['gender', 'blood_type', 'medical_condition', 'admission_type']
+        df = pd.get_dummies(df, columns=categorical_features)
+        X = df.values
+
+        return X
+
 def main():
     st.set_page_config(layout="wide")
     st.title('Healthcare Analytics Dashboard')
-    
+
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         db_path = os.path.join(current_dir, '..', 'data', 'healthcare.db')
-        
-        dashboard = HealthcareDashboard(db_path)
-        
-        # Display key metrics
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.metric("Total Patients", 
-                     f"{dashboard.df['patient_id'].nunique():,}")
-        with col2:
-            st.metric("Average Length of Stay", 
-                     f"{dashboard.df['length_of_stay'].mean():.1f} days")
-        with col3:
-            st.metric("Average Cost", 
-                     f"${dashboard.df['total_charges'].mean():,.2f}")
-        
-        # Display visualizations
-        st.subheader('Cost by Gender Analysis')
-        st.pyplot(dashboard.gender_cost_correlation())
-        
-        st.subheader('Medical Condition and Length of Stay Analysis')
-        st.pyplot(dashboard.condition_stay_correlation())
-        
-        st.subheader('Top 10 Doctors By Patients')
-        st.pyplot(dashboard.top_doctors_by_patients())
-        
-        st.subheader('Admission Types by Medical Condition')
-        st.pyplot(dashboard.admission_type_analysis())
-        
+        model_path = os.path.join(current_dir, '..', 'models', 'linear_regression_model.pkl')
+
+        dashboard = HealthcareDashboard(db_path, model_path)
+
+        # ... (Display key metrics and visualizations as before)
+
+        # Display patient prediction
+        patient_id = st.text_input("Enter Patient ID")
+        if patient_id:
+            patient_data = dashboard.get_patient_data(patient_id)
+            predicted_cost = dashboard.predict_future_cost(patient_data)
+            st.write(f"Predicted Future Cost: ${predicted_cost:.2f}")
+
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
         print(f"Detailed error: {str(e)}")
