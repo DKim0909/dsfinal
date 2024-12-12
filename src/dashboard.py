@@ -9,6 +9,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+import joblib
+
+
 class HealthcareDashboard:
     def __init__(self, db_path, model_path):
         try:
@@ -46,7 +49,8 @@ class HealthcareDashboard:
             print(f"Total unique patients: {self.df['patient_id'].nunique()}")
 
             # Load the trained model
-            self.model = self.load_model()
+            self.encode_categorical_data()
+            self.train_model()
 
         except Exception as e:
             print(f"Error in initialization: {str(e)}")
@@ -150,53 +154,75 @@ class HealthcareDashboard:
         return plt
 
 
-    def predict_costs(self):
-    # Prepare features
-        features = ['gender', 'medical_condition', 'length_of_stay', 'admission_type']
-        X = pd.get_dummies(self.df[features])
-        y = self.df['total_charges']
+    def predict_future_cost(self, patient_data):
     
-    # Split data
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        prepared_data = self.prepare_data(patient_data)
+
     
-    # Train model
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-    
-    # Evaluate
-        predictions = model.predict(X_test)
-        mse = mean_squared_error(y_test, predictions)
-        r2 = r2_score(y_test, predictions)
-    
-        return model, mse, r2
+        predicted_cost = self.model.predict(prepared_data)[0]
+        return predicted_cost
 
     def prepare_data(self, patient_data):
-        age = patient_data['age']
-        gender = patient_data['gender']
-        blood_type = patient_data['blood_type']
-        medical_condition = patient_data['medical_condition']
-        admission_type = patient_data['admission_type']
+    
+        feature_columns = ['age', 'length_of_stay', 'Male', 'Female', 'Cancer', 'Obesity', 'Diabetes', 'Asthma', 'Hypertension', 'Arthritis', 'Urgent', 'Emergency', 'Elective']
+        df = pd.DataFrame([patient_data])
 
-        df = pd.DataFrame({'age': [age],
-                       'gender': [gender],
-                       'blood_type': [blood_type],
-                       'medical_condition': [medical_condition],
-                       'admission_type': [admission_type]})
+    
+        for col in feature_columns:
+            if col not in df.columns:
+                df[col] = 0  # Set default value if column is missing
 
-        categorical_features = ['gender', 'blood_type', 'medical_condition', 'admission_type']
-        df = pd.get_dummies(df, columns=categorical_features)
-        X = df.values
-
+        X = df[feature_columns].values
         return X
-    def train_model(self):
-       
-        X = self.df[['Age', 'Gender', 'Medical Condition', 'Doctor', 'Hospital', 'Insurance Provider', 'Admission Type', 'Room Number']]
-        y = self.df['Billing Amount']
 
+    
+    def encode_categorical_data(self):
+    
+        encoder = OneHotEncoder()
+
+    
+        encoded_gender = encoder.fit_transform(self.df[['gender']]).toarray()
+        encoded_medical_condition = encoder.fit_transform(self.df[['medical_condition']]).toarray()
+        encoded_admission_type = encoder.fit_transform(self.df[['admission_type']]).toarray()
+
+    
+        encoded_gender_df = pd.DataFrame(encoded_gender, columns=encoder.categories_[0])
+        encoded_medical_condition_df = pd.DataFrame(encoded_medical_condition, columns=encoder.categories_[1])
+        encoded_admission_type_df = pd.DataFrame(encoded_admission_type, columns=encoder.categories_[2])
+
+    
+        self.df = pd.concat([self.df, encoded_gender_df, encoded_medical_condition_df, encoded_admission_type_df], axis=1)
+
+    
+        self.df.drop(['gender', 'medical_condition', 'admission_type'], axis=1, inplace=True)
+
+
+    
+    def train_model(self):
+
+        features = ['age', 'length_of_stay', 'Male', 'Female', 'Cancer', 'Obesity', 'Diabetes', 'Asthma', 'Hypertension', 'Arthritis', 'Urgent', 'Emergency', 'Elective']
+        target = 'total_charges'
+
+
+        X = self.df[features]
+        y = self.df[target]
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        model = LinearRegression()
-        model.fit(X_train, y_train)
-        return model
+
+
+        self.model = LinearRegression()
+        self.model.fit(X_train, y_train)
+
+
+        y_pred = self.model.predict(X_test)
+
+
+
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        print(f"Root Mean Squared Error: {rmse:.2f}")
+
+        return self.model
+
 
 def main():
     st.set_page_config(layout="wide")
