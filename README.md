@@ -6,7 +6,7 @@ Our project focuses on predicting patient outcomes, such as recovery times and r
 
 ## How to Run the Dashboard
 
-In order to run the dashboard, follow these steps:
+First, run `data_preprocessing.py` to clean data and load into`healthcare.db` In order to run the dashboard, follow these steps:
 
 1. Open a terminal and navigate to the `/dsfinal/src` directory.
    
